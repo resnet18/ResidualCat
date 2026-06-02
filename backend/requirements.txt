@@ -1,0 +1,12 @@
+fastapi==0.111.0
+uvicorn==0.30.0
+python-multipart==0.0.9
+torch==2.3.0
+torchvision==0.18.0
+transformers==4.41.0
+pillow==10.3.0
+
+# cd D:\Projects\rescat\backend
+# venv\Scripts\activate
+# pip install -r requirements.txt
+# python main.py
