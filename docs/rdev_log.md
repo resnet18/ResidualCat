@@ -32,11 +32,11 @@
 - [x] Verify backend pure-text generation with distilgpt2 on CUDA
 - [x] Push clean repository to GitHub (no large files)
 
-### Day 2 (June 3) — ResNet Integration
-- [ ] Load pretrained ResNet18, strip FC layer (output 512d)
-- [ ] Implement `Linear(512 → 768)` projector
-- [ ] Verify tensor shapes: image → ResNet → projector → [1, 1, 768]
-- [ ] Log: document dimension alignment issues and fixes
+### Day 2 (June 3) — ResNet Integration ✅ COMPLETE
+- [x] Load pretrained ResNet18, strip FC layer (output 512d)
+- [x] Implement `Linear(512 → 768)` projector
+- [x] Verify tensor shapes: image → ResNet → projector → [1, 1, 768]
+- [x] Log: document dimension alignment issues and fixes
 
 ### Day 3 (June 4) — Multimodal Fusion
 - [ ] Concatenate visual token + text embeddings along sequence dim

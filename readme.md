@@ -95,6 +95,8 @@ npm run dev             # http://localhost:4321
 
 This is a course assignment. No warranty. If it breaks, check your gradient.
 
+## Appendix
+```
 rescat/
 ├── frontend/                    
 │   ├── src/
@@ -118,3 +120,4 @@ rescat/
 │   └── dev_log.md
 │
 └── README.md
+```
