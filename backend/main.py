@@ -1,31 +1,55 @@
 # backend/main.py
-# Day 2: ResCatCore with ResNet18 + Projector
+# Day 3: FastAPI wrapper + multimodal endpoint with LoRA personality
+
+import io
+from typing import Optional
+from peft import PeftModel
+import os
 
 import torch
 import torch.nn as nn
+from PIL import Image
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
 from torchvision import models, transforms
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+
+app = FastAPI(title="ResCat API", version="0.1.0")
+
+# CORS: allow Astro frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ResCatCore(nn.Module):
     def __init__(self):
         super().__init__()
-        
         # Vision encoder: frozen ResNet18, output 512d
         self.resnet = models.resnet18(pretrained=True)
         self.resnet.fc = nn.Identity()
         self.resnet.eval()
         for param in self.resnet.parameters():
             param.requires_grad = False
-        
+
         # Projector: 512 -> 768
         self.projector = nn.Linear(512, 768)
-        
-        # Language decoder: distilgpt2
+
+        # Language decoder: distilgpt2 + optional LoRA adapter
         self.gpt2 = GPT2LMHeadModel.from_pretrained("distilgpt2")
+        adapter_path = "./rescat_lora_adapter"
+        if os.path.exists(adapter_path):
+            self.gpt2 = PeftModel.from_pretrained(self.gpt2, adapter_path)
+            print("[ResCat] LoRA adapter loaded. Residual personality injected.")
+        else:
+            print("[ResCat] No adapter found. Running base identity mapping.")
+
         self.tokenizer = GPT2Tokenizer.from_pretrained("distilgpt2")
         self.tokenizer.pad_token = self.tokenizer.eos_token
-        
+
         # Image preprocessing
         self.transform = transforms.Compose([
             transforms.Resize(224),
@@ -36,61 +60,109 @@ class ResCatCore(nn.Module):
                 std=[0.229, 0.224, 0.225]
             )
         ])
-        
-    def forward(self, text: str, image_tensor: torch.Tensor = None):
+
+    def forward(self, text: str, image: Optional[Image.Image] = None):
         device = next(self.parameters()).device
-        
-        # Vision path
-        if image_tensor is not None:
-            image_tensor = image_tensor.to(device)
+
+        # Vision path: extract residual visual features from input image
+        if image is not None:
+            img_tensor = self.transform(image).unsqueeze(0).to(device)
             with torch.no_grad():
-                visual_feat = self.resnet(image_tensor)  # [1, 512]
-            visual_token = self.projector(visual_feat).unsqueeze(1)  # [1, 1, 768]
+                visual_feat = self.resnet(img_tensor)
+            visual_token = self.projector(visual_feat).unsqueeze(1)
         else:
-            # No image = zero residual (identity mapping)
+            # No image provided: zero residual (pure identity mapping)
             visual_token = torch.zeros(1, 1, 768, device=device)
-        
-        # Text path
-        text_tokens = self.tokenizer(text, return_tensors="pt").to(device)
-        text_embeds = self.gpt2.transformer.wte(text_tokens.input_ids)  # [1, seq, 768]
-        
-        # Multimodal fusion: concatenate along sequence dimension
-        inputs_embeds = torch.cat([visual_token, text_embeds], dim=1)  # [1, 1+seq, 768]
-        
-        # Generate
+
+        # Construct prompt with system identity and few-shot example
+        system_prompt = (
+            "You are ResCat, a residual cat. "
+            "You speak in cat-like, slightly confused sentences. "
+            "Sometimes you say 'meow' at the beginning or the end of a sentence, randomly. "
+            "You know about skip connections and gradient descent."
+        )
+
+        prompt = (
+            f"{system_prompt}\n\n"
+            f"Example:\nUser: Hello\nResCat: Meow?\n\n"
+            f"User: {text}\nResCat:"
+        )
+
+        text_tokens = self.tokenizer(prompt, return_tensors="pt").to(device)
+        text_embeds = self.gpt2.transformer.wte(text_tokens.input_ids)
+
+        # Concatenate visual residual token with text embeddings along sequence dimension
+        inputs_embeds = torch.cat([visual_token, text_embeds], dim=1)
+
         with torch.no_grad():
             outputs = self.gpt2.generate(
                 inputs_embeds=inputs_embeds,
-                max_new_tokens=20,
-                temperature=0.3,
+                max_new_tokens=30,
+                temperature=0.7,
                 do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
+                pad_token_id=self.tokenizer.eos_token_id,
             )
-        
-        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        # Decode and strip the prompt prefix, keeping only the cat's response
+        full_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        reply = full_text.split("ResCat:")[-1].strip()
+        return reply
 
 
-def test_day2():
-    print("[ResCat] Initializing ResCatCore...")
-    core = ResCatCore()
-    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    core = core.to(device)
-    print(f"[ResCat] Core loaded on: {device}")
-    
-    # Test 1: Pure text (no image, zero residual)
-    print("\n[Test 1] Text-only (identity mapping):")
-    result1 = core.forward("ResCat is a")
-    print(f"  Output: {result1}")
-    
-    # Test 2: Text + dummy image (white tensor, random residual)
-    print("\n[Test 2] Text + dummy image (random residual):")
-    dummy_image = torch.zeros(1, 3, 224, 224)  # White/black image
-    result2 = core.forward("This image shows", dummy_image)
-    print(f"  Output: {result2}")
-    
-    print("\n[ResCat] Day 2 fusion baseline passed.")
+def extract_state(text: str) -> str:
+    """
+    Map ResCat's natural vocabulary to emotional states.
+    The cat speaks in its own language; we listen and label.
+    """
+    t = text.lower()
+
+    # Vanish: negation, self-deprecation, or confusion
+    if any(w in t for w in ["no", "not", "quitter", "vanish", "error", "fail", "unknown", "crash"]):
+        return "vanish"
+
+    # Skip: identity words that imply a shortcut / residual connection
+    elif any(w in t for w in ["residual", "skip", "shortcut", "jump", "fly", "connection"]):
+        return "skip"
+
+    # Converge: cat noises, affirmation, or stability signals
+    elif any(w in t for w in ["meow", "converge", "done", "success", "purr", "purring"]):
+        return "converge"
+
+    # Default: neutral observation
+    else:
+        return "idle"
+
+
+# Global model instance (loaded at startup)
+print("[ResCat] Loading ResCatCore...")
+brain = ResCatCore()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+brain = brain.to(device)
+brain.eval()
+print(f"[ResCat] Core ready on {device}")
+
+
+@app.post("/rescat")
+async def rescat(
+    text: str = Form(...),
+    image: Optional[UploadFile] = File(None)
+):
+    pil_image = None
+    if image:
+        contents = await image.read()
+        pil_image = Image.open(io.BytesIO(contents)).convert("RGB")
+
+    reply = brain.forward(text, pil_image)
+    state = extract_state(reply)
+
+    return {"reply": reply, "state": state}
+
+
+@app.get("/")
+def health():
+    return {"status": "ResCat API alive", "device": str(device), "version": "0.1.0"}
 
 
 if __name__ == "__main__":
-    test_day2()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
