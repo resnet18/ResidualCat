@@ -29,7 +29,7 @@ class ResCatCore(nn.Module):
     def __init__(self):
         super().__init__()
         # Vision encoder: frozen ResNet18, output 512d
-        self.resnet = models.resnet18(pretrained=True)
+        self.resnet = models.resnet18(weights='DEFAULT')
         self.resnet.fc = nn.Identity()
         self.resnet.eval()
         for param in self.resnet.parameters():
@@ -101,11 +101,18 @@ class ResCatCore(nn.Module):
                 temperature=0.7,
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id,
+                repetition_penalty=1.2,
+                early_stopping=True,
             )
 
         # Decode and strip the prompt prefix, keeping only the cat's response
         full_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        reply = full_text.split("ResCat:")[-1].strip()
+        # robustness design: default output as fallback
+        parts = full_text.split("ResCat:")
+        if len(parts) > 1:
+           reply = parts[-1].strip()
+        else:
+           reply = full_text.strip() or "Meow?"
         return reply
 
 
@@ -144,13 +151,15 @@ print(f"[ResCat] Core ready on {device}")
 
 @app.post("/rescat")
 async def rescat(
-    text: str = Form(...),
+    text: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None)
 ):
     pil_image = None
     if image:
         contents = await image.read()
         pil_image = Image.open(io.BytesIO(contents)).convert("RGB")
+    if not text or text.strip() == "":
+        text = "What do you see?"
 
     reply = brain.forward(text, pil_image)
     state = extract_state(reply)

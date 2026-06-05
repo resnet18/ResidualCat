@@ -1,6 +1,6 @@
 ---
-// assignment4.astro
-// ResCat Frontend - Lightweight Multimodal Verification Prototype
+// frontend/src/pages/index.astro
+// ResCat UI - Pixel-art desktop companion interface
 ---
 
 <!DOCTYPE html>
@@ -10,14 +10,201 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ResCat</title>
   <style>
-    body { font-family: 'Courier New', monospace; background: #f0f0f0; padding: 40px; }
-    h1 { font-size: 2em; }
-    p { color: #333; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 40px;
+    }
+    .container {
+      display: flex;
+      max-width: 900px;
+      margin: 0 auto;
+      gap: 20px;
+    }
+    .cat-panel {
+      width: 220px;
+      text-align: center;
+    }
+    .cat-panel img {
+      width: 200px;
+      image-rendering: pixelated;
+      border: 3px solid #000;
+      background: #fff;
+    }
+    .state-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+    .api-status {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+    }
+    .chat-panel {
+      flex: 1;
+      background: #fff;
+      border: 3px solid #000;
+      padding: 20px;
+    }
+    .chat-history {
+      height: 300px;
+      overflow-y: auto;
+      border: 2px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+    .msg {
+      margin: 8px 0;
+      line-height: 1.4;
+    }
+    .msg.user {
+      text-align: right;
+      color: #333;
+    }
+    .msg.cat {
+      text-align: left;
+      color: #000;
+      font-weight: bold;
+    }
+    .input-area {
+      display: flex;
+      gap: 8px;
+    }
+    input, button {
+      font-family: 'Courier New', monospace;
+      padding: 8px;
+      border: 2px solid #000;
+      font-size: 14px;
+    }
+    input {
+      flex: 1;
+    }
+    button {
+      background: #000;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #ff4444;
+    }
   </style>
 </head>
 <body>
-  <h1>ResidualCat</h1>
-  <p>Dev codename: rescat</p>
-  <p>A lightweight multimodal verification prototype, implemented as a desktop companion.</p>
+  <div class="container">
+    <!-- Left: Pixel cat -->
+    <div class="cat-panel">
+      <img id="cat-img" src="/rescat_idle.png" alt="ResCat">
+      <div id="state-label" class="state-label">ResCat is executing: idle</div>
+      <div id="api-status" class="api-status">API: checking...</div>
+    </div>
+
+    <!-- Right: Chat terminal -->
+    <div class="chat-panel">
+      <h2>ResCat Terminal</h2>
+      <div id="chat-history" class="chat-history">
+        <div class="msg cat">ResCat: System initialized. Identity mapping established.</div>
+      </div>
+            <div class="input-area">
+        <input type="file" id="user-image" accept="image/*" style="display:none;">
+        <button onclick="document.getElementById('user-image').click()" style="background:#666;">📷</button>
+        <input type="text" id="user-input" placeholder="Ask ResCat, or just upload an image..." onkeydown="if(event.key==='Enter')send()">
+        <button onclick="send()">Send</button>
+      </div>
+      <div id="file-name" style="font-size:11px; color:#666; margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <script is:inline>
+  const API_BASE = 'https://avenir-02-rescat.hf.space';
+  const API_URL = API_BASE + '/rescat';
+
+  // Show selected filename
+  document.getElementById('user-image').addEventListener('change', function() {
+    const name = this.files[0]?.name || '';
+    document.getElementById('file-name').textContent = name ? 'Image: ' + name : '';
+  });
+
+  // Check backend health (using online API, not localhost)
+  fetch(API_BASE + '/')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('api-status').textContent = 'API: ' + d.status;
+    })
+    .catch(() => {
+      document.getElementById('api-status').textContent = 'API: offline';
+      document.getElementById('cat-img').src = '/rescat_vanish.png';
+      document.getElementById('state-label').textContent = 'ResCat is executing: gradient vanishing...';
+    });
+
+  async function send() {
+    const input = document.getElementById('user-input');
+    const fileInput = document.getElementById('user-image');
+    let text = input.value.trim();
+    const file = fileInput.files[0];
+
+    if (!text && !file) return;
+    if (!text && file) {
+       text = "What do you see?";
+    }
+
+    const chat = document.getElementById('chat-history');
+    const catImg = document.getElementById('cat-img');
+    const stateLabel = document.getElementById('state-label');
+
+    // Render user message
+    let userMsg = 'You: ' + (text || '(image only)');
+    if (file) userMsg += ' [+' + file.name + ']';
+    chat.innerHTML += `<div class="msg user">${userMsg}</div>`;
+    input.value = '';
+    document.getElementById('file-name').textContent = '';
+
+    // Switch to process state
+    catImg.src = '/rescat_process.png';
+    stateLabel.textContent = 'ResCat is executing: forward propagation...';
+
+    try {
+      const formData = new FormData();
+      if (text) formData.append('text', text);
+      if (file) formData.append('image', file);
+
+      const res = await fetch(API_URL, { 
+        method: 'POST', 
+        body: formData,
+        mode: 'cors'
+      });
+      
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status);
+      }
+      
+      const data = await res.json();
+
+      // Update pixel art
+      catImg.src = `/rescat_${data.state}.png`;
+      stateLabel.textContent = `ResCat is executing: ${data.state}`;
+
+      // Auto-return to idle
+      if (data.state !== 'idle') {
+        setTimeout(() => {
+          catImg.src = '/rescat_idle.png';
+          stateLabel.textContent = 'ResCat is executing: idle';
+        }, 2000);
+      }
+
+      chat.innerHTML += `<div class="msg cat">ResCat: ${data.reply}</div>`;
+    } catch (err) {
+      console.error('Fetch error:', err);
+      catImg.src = '/rescat_vanish.png';
+      stateLabel.textContent = 'ResCat is executing: gradient vanishing...';
+      chat.innerHTML += `<div class="msg cat">ResCat: [Backend error: ${err.message}]</div>`;
+    }
+
+    chat.scrollTop = chat.scrollHeight;
+    fileInput.value = '';
+  }
+</script>
 </body>
 </html>

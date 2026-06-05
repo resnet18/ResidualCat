@@ -1,10 +1,11 @@
 # ResCat Development Log & Plan
 
 **Project**: ResidualCat (rescat)  
-**Current Date**: June 5, 2026  
+**Current Date**: June 5, 2026 (17:00)  
 **Presentation Deadline**: June 12, 2026 (7 days left)  
 **Documentation Deadline**: June 26, 2026  
-**Repository**: https://github.com/resnet18/ResidualCat
+**Repository**: https://github.com/resnet18/ResidualCat  
+**Live API**: https://avenir-02-rescat.hf.space
 
 ---
 
@@ -12,20 +13,21 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Astro Frontend | Skeleton Ready | `npm install` passed, dev server runs on `:4321` |
-| FastAPI Backend | Day 3 Complete | LoRA personality + ICL + system prompt active |
+| Astro Frontend | ✅ Complete | Pixel-art UI, state-driven rendering, image upload |
+| FastAPI Backend | ✅ Complete | `/rescat` endpoint, CORS, LoRA + ICL |
 | ResNet18 Integration | ✅ Complete | Frozen, output 512d, verified on CPU/GPU |
 | Projector Layer | ✅ Complete | Linear(512→768), tensor shape verified |
-| Multimodal Fusion | ✅ Complete | Visual token + text embeddings concatenation |
+| Multimodal Fusion | ✅ Complete | Visual token + text embeddings, dummy + real image tested |
 | LoRA Personality | ✅ Complete | r=8, 10 epochs, loss 6.5→1.0, 20 cat dialogues |
-| FastAPI API & CORS | ✅ Complete | `/rescat` endpoint returns `{reply, state}` |
-| Pixel Art Assets | Not Started | Waiting for collaborator (5 states) |
-| Render Deployment | Not Started | Planned for Day 5 |
+| FastAPI API & CORS | ✅ Complete | Returns `{reply, state}`, cross-origin enabled |
+| Pixel Art Assets | ✅ Complete | 5 states (idle/process/skip/vanish/converge) from collaborator |
+| Hugging Face Deployment | ✅ Complete | Live at `https://avenir-02-rescat.hf.space` |
 | Dev Log / Report | In Progress | This file |
+| Local `.exe` Version | 🔮 Future Work | Post-presentation |
 
 ---
 
-## 9-Day Execution Plan (June 3 → June 12)
+## Revised Execution Plan (June 5 → June 12)
 
 ### Day 1 (June 2) ✅ COMPLETE
 - [x] Initialize project directory structure
@@ -51,86 +53,52 @@
 - [x] **State Heuristic**: map natural vocabulary (meow/residual/no) to 5 states
 - [x] Log: document CoT hallucination handling during fusion and personality tuning
 
-### Day 4 (June 5) — Render Deployment
-- [ ] Deploy backend to Render (free tier)
-- [ ] Verify API health from external network
-- [ ] Log: document deployment issues and proxy/config workarounds
+### Day 4 (June 5) ✅ COMPLETE — Deployment & Frontend Integration
+- [x] **Hugging Face Spaces deployment** (Docker, CPU Basic, 16GB RAM)
+- [x] Verify API health from external network (`/rescat` returns JSON)
+- [x] Frontend `fetch()` integration with `mode: 'cors'`
+- [x] Auto-idle state machine (2s timeout after non-idle states)
+- [x] Image upload via `FormData` (text + optional image)
+- [x] End-to-end test with ImageNet test images (cat recognized as "It is a cat.")
+- [x] Log: documented deployment workflow and CORS debugging
 
-### Day 5 (June 6) — Pixel Art Integration & UI Polish
-- [ ] Receive pixel art assets from collaborator (idle, process, skip, vanish, converge)
-- [ ] Place assets in `frontend/public/`
-- [ ] Implement state-driven image switching in Astro page
-- [ ] Add pixel-art CSS (Courier New, sharp borders, retro palette)
-- [ ] Add loading spinner or "process" state transition
+## Completed
 
-### Day 6 (June 7) — Demo Hardening
-- [ ] Prepare 3 guaranteed demo inputs (text + optional image)
-- [ ] Test full pipeline: Astro → FastAPI → ResNet → GPT2 → State → Pixel swap
-- [ ] Add error boundaries (backend down → vanish state + fallback message)
-- [ ] Verify cross-browser rendering (Chrome/Edge)
-- [ ] Record short demo GIF or video
-
-### Day 7 (June 8) — Documentation & Report
-- [ ] Write `docs/dev_log.md`: AI-assisted development narrative
-- [ ] Document: architecture, problem-solving, hallucination handling
-- [ ] Include screenshots: terminal outputs, API responses, UI states
-- [ ] Draft report sections: Background, Tech Stack, Development Log, Results
-
-### Day 8 (June 9) — Buffer / Integration
-- [ ] Merge frontend into personal website as `assignment4.astro`
-- [ ] Verify static asset paths (`/rescat/rescat_idle.png` etc.)
-- [ ] Final spell-check and formatting
-- [ ] Optional: add bonus features (cross-platform badge, extra animation)
-
-### Day 9 (June 10) — Rehearsal
-- [ ] Dry-run presentation (5 min)
-- [ ] Prepare talking points: "lightweight multimodal verification"
-- [ ] Prepare fallback: if live demo fails, show recorded video
-- [ ] Push final code, tag release `v0.1-demo`
-
-### Day 10 (June 11) — Buffer
-- [ ] Final polish, sleep, prepare mentally
-
-### Day 11-12 (June 12) — Presentation Day
-- [ ] Deliver presentation
-- [ ] Submit documentation (if required same day)
+- **Backend**: FastAPI + ResCatCore (ResNet18 → Projector → distilgpt2 + LoRA adapter)
+- **Frontend**: Astro pixel-art UI with 5-state auto-idle machine
+- **Deployment**: Hugging Face Spaces (Docker, CPU Basic)
+- **Personality**: LoRA (r=8, 10ep, loss 6.5→1.0) + ICL + system prompt
+- **Multimodal**: Text + image upload, visual residual injection verified
 
 ---
 
 ## Key Technical Decisions
 
-### LoRA vs. System Prompt
-**Decision**: Use LoRA (r=8) + ICL + System Prompt triple insurance.  
-**Rationale**: Pure system prompt produced generic outputs ("free-to-play game"). LoRA alone with r=2 was too weak. The combination of adapter weights and prompt engineering achieves stable cat personality.
+- **LoRA r=8**: r=2 too weak, pure prompt too generic. Triple insurance (adapter + ICL + system prompt) achieves stable cat personality.
+- **1-shot ICL**: 2+ examples caused template overfitting ("I am a cat" regardless of input).
+- **Temperature 0.7**: 0.1 = repetition, 1.0 = hallucination, 0.7 = quantum superposition.
+- **State mapping**: Bound to natural vocabulary (meow → converge, residual → skip, no → vanish) rather than abstract concepts.
+- **Hugging Face Spaces**: Render requires foreign credit card; HF Spaces offers 16GB CPU free tier with no card.
 
-### ICL Example Count
-**Decision**: Use exactly 1 ICL example.  
-**Rationale**: 2+ examples caused the model to overfit to the "I am a cat" template, producing identical replies regardless of input. 1 example provides just enough guidance without constraining diversity.
+---
 
-### Temperature Selection
-**Decision**: temperature=0.7 for inference.  
-**Rationale**: 0.1 produced deterministic repetition; 0.7 yields quantum superposition (varied but coherent); 1.0 caused hallucination.
+## What's Next
 
-### State Mapping
-**Decision**: Bind states to ResCat's natural vocabulary rather than abstract concepts.  
-**Mapping**: "meow" → converge, "residual" → skip, "no" → vanish.  
-**Rationale**: The cat speaks in its own language; we listen and label.
+- **Demo prep**: Record GIF fallback, test on classroom machine, prepare 3 fixed inputs.
+- **Report**: Write AI-assisted development narrative for June 26 submission.
+- **Future work**: Local `.exe` via Tauri/PyQt, ONNX quantization, real vision-language alignment.
 
 ---
 
 ## Risk Register
 
-| Risk | Likelihood | Mitigation |
-|------|------------|------------|
-| Render cold-start >10s | High | Show recorded video as fallback; mention free-tier limitation |
-| Pixel art delayed | Medium | Use ASCII placeholder art or CSS-drawn cat |
-| ResNet-GPT2 fusion shape mismatch | Low (resolved) | Verified on Day 2; fallback to zero residual |
-| GitHub large-file rejection | Low (mitigated) | `.gitignore` excludes `venv/` and `node_modules/` |
-| Cross-origin blocked | Low (resolved) | CORS middleware active; tested with `Invoke-RestMethod` |
-| LoRA personality unstable | Low (resolved) | Triple insurance: LoRA + ICL + system prompt |
+| Risk | Status |
+|------|--------|
+| HF cold-start | Warm up before demo |
+| Classroom network | Local `serve` fallback ready |
+| Cross-origin | Resolved (CORS + `mode: 'cors'`) |
+| Model size | ~1GB fits in HF 16GB instance |
 
 ---
 
-## Next Immediate Action
-
-**Day 4 (June 5)**: Deploy backend to Render. Verify external API access. Test with `curl` from outside local network.
+*ResCat achieved state-of-the-art performance on assignment 4. It is a cat.*

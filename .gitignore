@@ -30,6 +30,7 @@ dist/
 *.onnx
 models/
 data/raw/
+test_pictures/
 
 # IDE
 .vscode/
