@@ -164,7 +164,7 @@ Development Notes
 - Day 2: ResNet18 + Projector integration, multimodal tensor fusion verified.
 - Day 3: FastAPI wrapper, CORS, LoRA personality injection (loss 6.5→1.0), ICL prompt engineering.
 - Day 4: Hugging Face Spaces deployment, frontend-backend integration, end-to-end test with ImageNet test images.
-- Pixel Art: 5 states (idle, process, skip, vanish, converge) provided by collaborator.
+- Pixel Art: 5 states (idle, process, skip, vanish, converge) provided by collaborator [@Yunease](https://github.com/Yunease).
 
 ---
 
