@@ -145,16 +145,17 @@ Online Deployment
 
 ---
 
-Tech Stack
+## Tech Stack
 
-Layer	Technology	
-Frontend	Astro, HTML/CSS/JS	
-Backend	FastAPI, Uvicorn	
-Vision	ResNet18 (torchvision, frozen)	
-Language	distilgpt2 (HuggingFace Transformers)	
-Personality	LoRA (PEFT, r=8) + ICL + System Prompt	
-Fusion	Custom `nn.Linear` projector	
-Deployment	Hugging Face Spaces (backend), static host (frontend)	
+| Layer | Technology |
+|-------|------------|
+| Frontend | Astro, HTML/CSS/JS |
+| Backend | FastAPI, Uvicorn |
+| Vision | ResNet18 (torchvision, frozen) |
+| Language | distilgpt2 (HuggingFace Transformers) |
+| Personality | LoRA (PEFT, r=8) + ICL + System Prompt |
+| Fusion | Custom `nn.Linear` projector |
+| Deployment | Hugging Face Spaces (backend), static host (frontend) |
 
 ---
 
