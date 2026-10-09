@@ -1,6 +1,35 @@
 # backend/main.py
 # Day 3: FastAPI wrapper + multimodal endpoint with LoRA personality
 
+# --- anecdote on the vision-language interface -----------
+# Vision path: frozen ResNet18 -> randomly initialized Linear(512, 768)
+# -> distilgpt2 + LoRA. No visual-semantic alignment was trained; the
+# projector remains at its initialization, which we report for completeness.
+#
+# During the final demonstration (2026-06-12), an ImageNet cat image
+# produced the token "cat". We provisionally hypothesized emergent
+# multimodal perception. Controlled follow-ups (n=4) showed:
+#   (i)   4/4 salient cat images yielded "cat"; non-cat images yielded
+#         semantically incoherent outputs;
+#   (ii)  a background-dominated cat image failed, while its cropped
+#         counterpart succeeded. We attribute this to the CenterCrop(224)
+#         preprocessing excising the salient object, rather than to any
+#         fine-grained perceptual sensitivity;
+#   (iii) under repeated inference, effect (i) did not replicate, and a
+#         dog image elicited "cat".
+# Conclusion: the phenomenon is consistent with sampling noise
+# (temperature=0.7) combined with a single-domain lexical attractor. The
+# 20-dialogue LoRA corpus contains exactly one concrete noun category,
+# so confused decoding collapses to "cat". Consistent with training pair
+# #4 ("What do you see?" -> "I see a tensor. It looks like a cat.
+# Probably."), the visual input modulates only the degree of decoder
+# confusion, not the identity of the emitted token. The system exhibits no
+# measurable grounding. We preserve this record as a cautionary datapoint
+# on anecdotal evaluation of emergent capabilities.
+#
+# TL;DR: ResCat never saw anything. This comment is the only thing the incident ever produced.
+# ---------------------------------------------------------------------------
+
 import io
 from typing import Optional
 from peft import PeftModel
